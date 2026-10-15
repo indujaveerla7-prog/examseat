@@ -1,0 +1,10 @@
+target/
+.git/
+.gitignore
+frontend/
+*.md
+sample_students.csv
+ExamSeatingApp.java
+.idea/
+*.iml
+.vscode/
