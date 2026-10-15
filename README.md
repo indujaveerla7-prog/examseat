@@ -19,48 +19,53 @@ A complete enterprise-grade **Full-Stack Application** developed with **Spring B
 
 ```text
 examseat/
-├── Dockerfile                                  # Multi-stage Docker build for Render backend
-├── .dockerignore                               # Docker context exclusions
-├── render.yaml                                 # Render Blueprint specification
-├── vercel.json                                 # Root Vercel routing configuration
-├── .gitignore                                  # Git ignored patterns
-├── pom.xml                                     # Maven dependencies (Spring Boot, JPA, MySQL, Postgres, H2)
-├── sample_students.csv                         # Multi-department test roster (CSE, ECE, MECH, CIVIL)
+├── backend/                                    # All Java Spring Boot Backend Files
+│   ├── src/                                    # Java Source Tree
+│   │   ├── main/
+│   │   │   ├── java/com/exam/seating/
+│   │   │   │   ├── ExamSeatingApplication.java # Spring Boot Entry Point & Auto Seeder
+│   │   │   │   ├── config/
+│   │   │   │   │   └── CorsConfig.java         # Global CORS for Vercel <-> Render
+│   │   │   │   ├── model/
+│   │   │   │   │   ├── Hall.java               # Hall Entity (with safe SQL column mappings)
+│   │   │   │   │   ├── Student.java            # Student Entity
+│   │   │   │   │   ├── Allocation.java         # Seat Allocation Entity
+│   │   │   │   │   └── AllocationRequest.java  # Allocation Request DTO
+│   │   │   │   ├── repository/
+│   │   │   │   │   ├── HallRepository.java     # Spring Data JPA Repository
+│   │   │   │   │   ├── StudentRepository.java  # Spring Data JPA Repository
+│   │   │   │   │   └── AllocationRepository.java# Spring Data JPA Repository
+│   │   │   │   ├── service/
+│   │   │   │   │   └── SeatingAllocationService.java # Core Interleaving & Anti-Cheating Algorithm
+│   │   │   │   └── controller/
+│   │   │   │       ├── HealthController.java   # Health Check Endpoint (/api/health)
+│   │   │   │       ├── HallController.java     # REST Endpoints for /api/halls
+│   │   │   │       ├── StudentController.java  # REST Endpoints for /api/students
+│   │   │   │       └── AllocationController.java# REST Endpoints for /api/allocations
+│   │   │   └── resources/
+│   │   │       ├── application.properties      # Port ${PORT:8080}, Aiven DB & Hibernate config
+│   │   │       └── static/                     # Embedded Frontend fallback
+│   │   │           ├── index.html
+│   │   │           ├── styles.css
+│   │   │           └── app.js
+│   │   └── test/
+│   ├── pom.xml                                 # Maven dependencies (Spring Boot, JPA, MySQL, Postgres, H2)
+│   ├── Dockerfile                              # Backend Docker build specification
+│   ├── .dockerignore                           # Backend Docker context exclusions
+│   ├── .env.example                            # Example environment variables template
+│   └── sample_students.csv                     # Multi-department test roster (CSE, ECE, MECH, CIVIL)
 │
-├── frontend/                                   # Standalone Frontend for Vercel deployment
+├── frontend/                                   # All Frontend Web Application Files
 │   ├── index.html                              # Responsive Web Dashboard & Settings Modal
-│   ├── styles.css                              # UI Design System & Printable layout
-│   ├── app.js                                  # Live REST API Client + Anti-Cheating Engine
-│   └── vercel.json                             # Vercel SPA rewrites & clean URLs
+│   ├── styles.css                              # Modern UI Design System & Printable layout
+│   ├── app.js                                  # Live REST API Client + Auto-Connection Engine
+│   └── vercel.json                             # Vercel SPA rewrites & /api reverse proxy
 │
-├── src/                                        # Spring Boot Backend Source Code
-│   ├── main/
-│   │   ├── java/com/exam/seating/
-│   │   │   ├── ExamSeatingApplication.java     # Spring Boot Entry Point & Auto Seeder
-│   │   │   ├── config/
-│   │   │   │   └── CorsConfig.java             # Global CORS for Vercel <-> Render
-│   │   │   ├── model/
-│   │   │   │   ├── Hall.java                   # Hall Entity (with safe SQL column mappings)
-│   │   │   │   ├── Student.java                # Student Entity
-│   │   │   │   ├── Allocation.java             # Seat Allocation Entity
-│   │   │   │   └── AllocationRequest.java      # Allocation Request DTO
-│   │   │   ├── repository/
-│   │   │   │   ├── HallRepository.java         # Spring Data JPA Repository
-│   │   │   │   ├── StudentRepository.java      # Spring Data JPA Repository
-│   │   │   │   └── AllocationRepository.java   # Spring Data JPA Repository
-│   │   │   ├── service/
-│   │   │   │   └── SeatingAllocationService.java # Core Interleaving & Anti-Cheating Algorithm
-│   │   │   └── controller/
-│   │   │       ├── HealthController.java       # Health Check Endpoint (/api/health)
-│   │   │       ├── HallController.java         # REST Endpoints for /api/halls
-│   │   │       ├── StudentController.java      # REST Endpoints for /api/students
-│   │   │       └── AllocationController.java   # REST Endpoints for /api/allocations
-│   │   └── resources/
-│   │       ├── application.properties          # Port ${PORT:8080}, Aiven DB & Hibernate config
-│   │       └── static/                         # Embedded Frontend (served directly if running standalone)
-│   │           ├── index.html
-│   │           ├── styles.css
-│   │           └── app.js
+├── Dockerfile                                  # Root Docker build for Render deployment
+├── .dockerignore                               # Root Docker exclusions
+├── render.yaml                                 # Render Blueprint specification
+├── vercel.json                                 # Root Vercel reverse proxy & routing
+├── .gitignore                                  # Git ignored patterns
 └── README.md
 ```
 

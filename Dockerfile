@@ -1,28 +1,22 @@
-# Stage 1: Build the Spring Boot application using Maven and Temurin JDK 17
-FROM maven:3.9.6-eclipse-temurin-17 AS builder
+# Multi-stage Docker build for Spring Boot Backend in /backend
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Cache Maven dependencies
-COPY pom.xml .
-RUN mvn dependency:go-offline -B || true
+# Copy pom.xml and source code from backend directory
+COPY backend/pom.xml .
+COPY backend/src ./src
 
-# Copy source code and compile production JAR
-COPY src ./src
+# Build JAR package (skipping tests for rapid container packaging)
 RUN mvn clean package -DskipTests
 
-# Stage 2: Ultra-lightweight JRE container for production runtime on Render
-FROM eclipse-temurin:17-jre-alpine
+# Lightweight JRE runtime container
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Run as non-privileged spring user for security
-RUN addgroup -S spring && adduser -S spring -G spring
-USER spring:spring
+# Copy compiled executable JAR from build stage
+COPY --from=build /app/target/*.jar app.jar
 
-# Copy built executable JAR
-COPY --from=builder /app/target/*.jar app.jar
-
-# Dynamic PORT assigned by Render platform ($PORT)
 ENV PORT=8080
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-Dserver.port=${PORT}", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

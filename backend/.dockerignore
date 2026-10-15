@@ -1,0 +1,9 @@
+target/
+*.class
+.git
+.gitignore
+.env
+*.log
+.idea
+.vscode
+*.iml
