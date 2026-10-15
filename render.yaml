@@ -10,9 +10,9 @@ services:
       - key: PORT
         value: 8080
       - key: SPRING_DATASOURCE_URL
-        sync: false
+        value: jdbc:mysql://mysql-11deb961-examseating.h.aivencloud.com:17892/defaultdb?sslMode=REQUIRED
       - key: SPRING_DATASOURCE_USERNAME
-        sync: false
+        value: avnadmin
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
       - key: SPRING_JPA_HIBERNATE_DDL_AUTO
