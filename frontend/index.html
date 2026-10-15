@@ -81,16 +81,26 @@
         </button>
       </div>
     </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- Main Content Area -->
     <main class="main-content">
       <!-- Top Bar -->
       <header class="topbar">
         <div class="topbar-title-area">
-          <h2 id="pageTitle">System Overview</h2>
-          <p id="pageSubtitle" class="text-muted">Spring Boot + JPA + H2 / MySQL Seating Allocation System</p>
+          <div class="topbar-title-row">
+            <button class="mobile-menu-btn" id="btnToggleMobileSidebar" aria-label="Toggle navigation menu">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <h2 id="pageTitle">System Overview</h2>
+          </div>
+          <p id="pageSubtitle" class="text-muted">Spring Boot + JPA + Aiven MySQL Seating Allocation Engine</p>
         </div>
         <div class="topbar-actions">
+          <div class="cloud-pill" id="topbarCloudPill" title="Click to view backend connection details">
+            <span class="status-dot checking" id="topbarStatusDot"></span>
+            <span id="topbarStatusText">Render + Aiven MySQL</span>
+          </div>
           <button class="btn btn-primary" id="btnQuickAllocate">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Auto Allocate Now
@@ -412,6 +422,13 @@
             <div class="lookup-search-box">
               <input type="text" id="lookupSearchInput" placeholder="Enter Roll Number (e.g., 21CS001, 21EC005)..." autofocus>
               <button class="btn btn-primary" id="btnRunLookup">Search Seat</button>
+            </div>
+            <div class="quick-chips-container mt-2">
+              <span class="text-xs text-muted font-bold">Quick Try:</span>
+              <button type="button" class="chip-btn" onclick="quickSearch('21CS001')">21CS001 (CSE)</button>
+              <button type="button" class="chip-btn" onclick="quickSearch('21EC001')">21EC001 (ECE)</button>
+              <button type="button" class="chip-btn" onclick="quickSearch('21ME001')">21ME001 (MECH)</button>
+              <button type="button" class="chip-btn" onclick="quickSearch('21CE001')">21CE001 (CIVIL)</button>
             </div>
             <div id="lookupResultArea" class="lookup-result-container hidden"></div>
           </div>

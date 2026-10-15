@@ -3,6 +3,10 @@
   "cleanUrls": true,
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "https://examseat-backend-wtmf.onrender.com/api/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/frontend/$1"
     }

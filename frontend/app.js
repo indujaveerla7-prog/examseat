@@ -84,6 +84,8 @@ function getBranchTheme(branch) {
 // ==========================================================================
 
 let isBackendOnline = false;
+let healthCheckTimer = null;
+let isCheckingHealth = false;
 
 function getApiBaseUrl() {
   const custom = localStorage.getItem("EXAMSEAT_API_BASE_URL");
@@ -93,16 +95,16 @@ function getApiBaseUrl() {
   if (window.API_BASE_URL && window.API_BASE_URL.trim()) {
     return window.API_BASE_URL.trim().replace(/\/+$/, "");
   }
-  // If hosted on Spring Boot default port 8080
-  if (window.location.port === "8080") {
+  // If hosted on Spring Boot default port 8080 or directly on Render origin
+  if (window.location.port === "8080" || (window.location.hostname && window.location.hostname.includes("onrender.com"))) {
     return "";
   }
   // Local development fallback
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
     return "http://localhost:8080";
   }
-  // Production Vercel: relative if proxy is setup or saved URL
-  return "";
+  // Cloud Production: Automatically connect Vercel frontend to the live Render backend
+  return "https://examseat-backend-wtmf.onrender.com";
 }
 
 function setApiBaseUrl(url) {
@@ -114,8 +116,13 @@ function setApiBaseUrl(url) {
 }
 
 async function checkBackendHealth() {
+  if (isCheckingHealth) return isBackendOnline;
+  isCheckingHealth = true;
+
   const dot = document.getElementById("backendStatusDot");
   const text = document.getElementById("backendStatusText");
+  const topDot = document.getElementById("topbarStatusDot");
+  const topText = document.getElementById("topbarStatusText");
   const urlLabel = document.getElementById("backendUrlLabel");
   const base = getApiBaseUrl();
 
@@ -124,39 +131,111 @@ async function checkBackendHealth() {
   }
 
   if (dot) dot.className = "status-dot checking";
-  if (text) text.innerText = "Checking API...";
+  if (topDot) topDot.className = "status-dot checking";
+  if (text) text.innerText = "Connecting to Render...";
+  if (topText) topText.innerText = "Connecting...";
+
+  // Warmup detection timer: alert user if Render cold start takes > 2.5s
+  const coldStartTimer = setTimeout(() => {
+    if (!isBackendOnline) {
+      if (text) text.innerText = "Waking up Render (cold start)...";
+      if (topText) topText.innerText = "Waking up...";
+    }
+  }, 2500);
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    // 20 second timeout for Render free tier spin-up
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
     const res = await fetch(`${base}/api/health`, { signal: controller.signal });
     clearTimeout(timeoutId);
+    clearTimeout(coldStartTimer);
 
     if (res.ok) {
       isBackendOnline = true;
       if (dot) dot.className = "status-dot online";
+      if (topDot) topDot.className = "status-dot online";
       if (text) {
-        text.innerText = "Connected (Online)";
+        text.innerText = "Connected (Render + Aiven)";
         text.style.color = "var(--success)";
       }
+      if (topText) {
+        topText.innerText = "Cloud Live";
+      }
+      isCheckingHealth = false;
       return true;
     }
   } catch (err) {
-    // Backend offline / unreachable
+    clearTimeout(coldStartTimer);
   }
 
   isBackendOnline = false;
   if (dot) dot.className = "status-dot offline";
+  if (topDot) topDot.className = "status-dot offline";
   if (text) {
-    text.innerText = "Offline Mode (Local)";
+    text.innerText = "Offline Mode (Local Fallback)";
     text.style.color = "var(--warning)";
   }
+  if (topText) {
+    topText.innerText = "Local Fallback";
+  }
+
+  // Auto-retry polling every 6s until Render is up
+  if (!healthCheckTimer) {
+    healthCheckTimer = setTimeout(async () => {
+      healthCheckTimer = null;
+      const ok = await checkBackendHealth();
+      if (ok) {
+        await syncDataFromBackend(true);
+        refreshUI();
+      }
+    }, 6000);
+  }
+
+  isCheckingHealth = false;
   return false;
 }
 
 // ==========================================================================
 // 3. Storage & State Synchronization
 // ==========================================================================
+
+async function syncDataFromBackend(silent = false) {
+  if (!isBackendOnline) return false;
+  const base = getApiBaseUrl();
+  try {
+    const [hallsRes, studentsRes, allocsRes] = await Promise.all([
+      fetch(`${base}/api/halls`),
+      fetch(`${base}/api/students`),
+      fetch(`${base}/api/allocations`)
+    ]);
+
+    if (hallsRes.ok && studentsRes.ok && allocsRes.ok) {
+      const hallsData = await hallsRes.json();
+      const studentsData = await studentsRes.json();
+      const allocsData = await allocsRes.json();
+
+      if (Array.isArray(hallsData) && hallsData.length > 0) {
+        APP_STATE.halls = hallsData;
+      }
+      if (Array.isArray(studentsData) && studentsData.length > 0) {
+        APP_STATE.students = studentsData;
+      }
+      if (Array.isArray(allocsData) && allocsData.length > 0) {
+        APP_STATE.allocations = allocsData.map(a => normalizeAllocation(a));
+      }
+
+      saveState();
+      if (!silent) {
+        showNotification("Synchronized live data from Render & Aiven Database!", "success");
+      }
+      return true;
+    }
+  } catch (err) {
+    console.warn("Error synchronizing remote backend data:", err);
+  }
+  return false;
+}
 
 async function loadState() {
   // Step 1: Load cached state from LocalStorage
@@ -177,38 +256,13 @@ async function loadState() {
     APP_STATE.allocations = [];
   }
 
-  // Step 2: Check backend health and sync live data
+  // Render initial UI immediately for instant paint
+  refreshUI();
+
+  // Step 2: Check backend health and sync live data from Aiven MySQL
   const online = await checkBackendHealth();
   if (online) {
-    try {
-      const base = getApiBaseUrl();
-      const [hallsRes, studentsRes, allocsRes] = await Promise.all([
-        fetch(`${base}/api/halls`),
-        fetch(`${base}/api/students`),
-        fetch(`${base}/api/allocations`)
-      ]);
-
-      if (hallsRes.ok && studentsRes.ok && allocsRes.ok) {
-        const hallsData = await hallsRes.json();
-        const studentsData = await studentsRes.json();
-        const allocsData = await allocsRes.json();
-
-        if (Array.isArray(hallsData) && hallsData.length > 0) {
-          APP_STATE.halls = hallsData;
-        }
-        if (Array.isArray(studentsData) && studentsData.length > 0) {
-          APP_STATE.students = studentsData;
-        }
-        if (Array.isArray(allocsData) && allocsData.length > 0) {
-          APP_STATE.allocations = allocsData.map(a => normalizeAllocation(a));
-        }
-
-        saveState();
-        showNotification("Synchronized with Spring Boot & Aiven Database backend!", "success");
-      }
-    } catch (err) {
-      console.warn("Error synchronizing remote backend data:", err);
-    }
+    await syncDataFromBackend(false);
   }
 
   if (APP_STATE.allocations.length === 0 && APP_STATE.students.length > 0) {
@@ -731,6 +785,33 @@ function setupEventListeners() {
     showNotification("Backend API URL updated. Reconnecting...", "info");
     await loadState();
   });
+  // Mobile Sidebar Drawer Toggle
+  const btnToggle = document.getElementById("btnToggleMobileSidebar");
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+
+  btnToggle?.addEventListener("click", () => {
+    sidebar?.classList.toggle("open");
+    overlay?.classList.toggle("active");
+  });
+
+  overlay?.addEventListener("click", () => {
+    sidebar?.classList.remove("open");
+    overlay?.classList.remove("active");
+  });
+
+  // Topbar Cloud Pill click
+  document.getElementById("topbarCloudPill")?.addEventListener("click", openBackendModal);
+
+  // Expose global Quick Search for hall ticket lookup chips
+  window.quickSearch = function(rollNo) {
+    const input = document.getElementById("lookupSearchInput");
+    if (input) {
+      input.value = rollNo;
+    }
+    switchTab("lookup");
+    runStudentLookup();
+  };
 }
 
 function readAllocationFormInputs() {
